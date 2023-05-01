@@ -62,17 +62,17 @@ void _pwm_init()
     pwm_set_chan_level(0, 1, 0);
     pwm_set_chan_level(1, 0, 25000);
     pwm_set_chan_level(1, 1, 0);
-    pwm_set_chan_level(2, 0, 0);
+    pwm_set_chan_level(2, 0, 25000);
     pwm_set_chan_level(2, 1, 0);
-    pwm_set_chan_level(3, 0, 0);
+    pwm_set_chan_level(3, 0, 25000);
     pwm_set_chan_level(3, 1, 0);
-    pwm_set_chan_level(4, 0, 0);
+    pwm_set_chan_level(4, 0, 25000);
     pwm_set_chan_level(4, 1, 0);
-    pwm_set_chan_level(5, 0, 0);
+    pwm_set_chan_level(5, 0, 25000);
     pwm_set_chan_level(5, 1, 0);
-    pwm_set_chan_level(6, 0, 0);
+    pwm_set_chan_level(6, 0, 25000);
     pwm_set_chan_level(6, 1, 0);
-    pwm_set_chan_level(7, 0, 0);
+    pwm_set_chan_level(7, 0, 25000);
     pwm_set_chan_level(7, 1, 0);
 
     pwm_set_enabled(0, true);
