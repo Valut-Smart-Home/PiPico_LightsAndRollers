@@ -1,3 +1,4 @@
+#include "hardware/timer.h"
 #include "pico/stdio.h"
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
@@ -57,7 +58,36 @@ void _pwm_init()
     pwm_set_clkdiv_int_frac(7, 2, 8);
 
 
-    pwm_set_chan_level(3, 0, 25000);
-    pwm_set_chan_level(3, 1, 50000);
+    pwm_set_chan_level(0, 0, 25000);
+    pwm_set_chan_level(0, 1, 0);
+    pwm_set_chan_level(1, 0, 25000);
+    pwm_set_chan_level(1, 1, 0);
+    pwm_set_chan_level(2, 0, 0);
+    pwm_set_chan_level(2, 1, 0);
+    pwm_set_chan_level(3, 0, 0);
+    pwm_set_chan_level(3, 1, 0);
+    pwm_set_chan_level(4, 0, 0);
+    pwm_set_chan_level(4, 1, 0);
+    pwm_set_chan_level(5, 0, 0);
+    pwm_set_chan_level(5, 1, 0);
+    pwm_set_chan_level(6, 0, 0);
+    pwm_set_chan_level(6, 1, 0);
+    pwm_set_chan_level(7, 0, 0);
+    pwm_set_chan_level(7, 1, 0);
+
+    pwm_set_enabled(0, true);
+    busy_wait_us(125);
+    pwm_set_enabled(5, true);
+    busy_wait_us(125);
+    pwm_set_enabled(2, true);
+    busy_wait_us(125);
+    pwm_set_enabled(7, true);
+    busy_wait_us(125);
+    pwm_set_enabled(4, true);
+    busy_wait_us(125);
+    pwm_set_enabled(1, true);
+    busy_wait_us(125);
+    pwm_set_enabled(6, true);
+    busy_wait_us(125);
     pwm_set_enabled(3, true);
 }
