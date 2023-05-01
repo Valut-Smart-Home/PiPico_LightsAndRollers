@@ -1,0 +1,29 @@
+steps:
+  - id: 'cmake'
+    dir: '$_DIR'
+    name: 'lukstep/raspberry-pi-pico-sdk:latest'
+    args: ['cmake', 
+            '-S', '.',
+            '-B', './build']
+  - id: 'make'
+    dir: '$_DIR'
+    name: 'lukstep/raspberry-pi-pico-sdk:latest'
+    args: ['make', '--directory=./build']
+    waitFor: ['cmake']
+  - id: 'store elf'
+    dir: '$_DIR'
+    name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', './build/*.elf', 'gs://pipico-artifacts-$PROJECT_ID/$BUILD_ID/']
+    waitFor: ['make']
+  - id: 'store uf2'
+    dir: '$_DIR'
+    name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', './build/*.uf2', 'gs://pipico-artifacts-$PROJECT_ID/$BUILD_ID/']
+    waitFor: ['make']
+  - id: 'deploy start'
+    dir: '$_DIR'
+    name: 'gcr.io/cloud-builders/gcloud'
+    args: ['pubsub', 'topics', 'publish', 'pipico-program-requests', '--message="$BUILD_ID $_DEPLOY"']
+    waitFor: ['store elf']
+options:
+  logging: CLOUD_LOGGING_ONLY
