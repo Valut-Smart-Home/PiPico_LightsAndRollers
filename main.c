@@ -77,18 +77,18 @@ void _pwm_init()
     pwm_set_chan_level(7, 1, 0);
 
     pwm_set_enabled(0, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(5, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(2, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(7, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(4, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(1, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(6, true);
-    busy_wait_at_least_cycles(15250);
+    busy_wait_at_least_cycles(15275);
     pwm_set_enabled(3, true);
 }
