@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include "hardware/regs/uart.h"
 #include "pico/platform.h"
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
@@ -72,7 +73,7 @@ int main ()
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
             }
-            else 
+            else if (!(uart_get_hw(uart0)->fr & UART_UARTFR_BUSY_BITS))
             {
                 gpio_put(3, false);
             }
