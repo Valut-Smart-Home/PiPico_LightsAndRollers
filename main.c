@@ -23,7 +23,7 @@ void _i2c_init();
 //     Address Address 0100AAA1
 //     Read bytes
 
-uint8_t btn_read;
+uint8_t btn_read = 0;
 
 int main ()
 {
