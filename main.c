@@ -69,12 +69,13 @@ int main ()
             absolute_time_t actual = get_absolute_time();
             if (actual >= next_uart_write)
             {
-                gpio_put(3, true);
+                gpio_put(3, true); // 3us to switch
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
             }
             else if (!(uart_get_hw(uart0)->fr & UART_UARTFR_BUSY_BITS))
             {
+                //3us to switch = 375 cycles
                 gpio_put(3, false);
             }
         }
