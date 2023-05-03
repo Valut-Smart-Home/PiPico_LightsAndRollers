@@ -69,9 +69,6 @@ int main ()
                 gpio_put(3, true);
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
-            }
-            else 
-            {
                 gpio_put(3, false);
             }
         }
