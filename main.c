@@ -1,22 +1,52 @@
-#include "hardware/timer.h"
-#include "pico/platform.h"
-#include "pico/stdio.h"
-#include "pico/stdlib.h"
-#include "hardware/pwm.h"
+#include <stdbool.h>
 #include <stdint.h>
+#include "pico/platform.h"
+#include "hardware/gpio.h"
+#include "hardware/timer.h"
+#include "hardware/pwm.h"
+#include "hardware/uart.h"
+#include "hardware/i2c.h"
 
 void _pwm_init();
+void _uart_init();
+void _i2c_init();
+
+// PCA9555: 
+//   Write:
+//     Address 0100AAA0
+//     Command
+//     Bytes
+//   Read:
+//     Address Address 0100AAA0
+//     Command
+//     Reset
+//     Address Address 0100AAA1
+//     Read bytes
+
+uint8_t btn_read;
 
 int main ()
 {
     // Init
-    stdio_init_all();
+    _i2c_init();
+    _uart_init();
     _pwm_init();
 
     while(1)
     {
         // Loop
-        
+        int ret = i2c_read_blocking(i2c0, 0x20, &btn_read, 1, false);
+        if (ret == 1)
+        {
+            pwm_set_chan_level(0, 0, (btn_read & 0x01) ? 25000 : 0);
+            pwm_set_chan_level(1, 0, (btn_read & 0x02) ? 25000 : 0);
+            pwm_set_chan_level(2, 0, (btn_read & 0x04) ? 25000 : 0);
+            pwm_set_chan_level(3, 0, (btn_read & 0x08) ? 25000 : 0);
+            pwm_set_chan_level(4, 0, (btn_read & 0x10) ? 25000 : 0);
+            pwm_set_chan_level(5, 0, (btn_read & 0x20) ? 25000 : 0);
+            pwm_set_chan_level(6, 0, (btn_read & 0x40) ? 25000 : 0);
+            pwm_set_chan_level(7, 0, (btn_read & 0x80) ? 25000 : 0);
+        }
     }
 }
 
@@ -58,7 +88,6 @@ void _pwm_init()
     pwm_set_clkdiv_int_frac(6, 2, 8);
     pwm_set_clkdiv_int_frac(7, 2, 8);
 
-
     pwm_set_chan_level(0, 0, 25000);
     pwm_set_chan_level(0, 1, 0);
     pwm_set_chan_level(1, 0, 25000);
@@ -91,4 +120,31 @@ void _pwm_init()
     pwm_set_enabled(6, true);
     busy_wait_at_least_cycles(15275);
     pwm_set_enabled(3, true);
+}
+
+void _uart_init()
+{
+    uart_init(uart0, 115200);
+    gpio_set_function(0, GPIO_FUNC_UART);
+    gpio_set_function(1, GPIO_FUNC_UART);
+    gpio_set_function(3, GPIO_FUNC_UART);
+    uart_set_hw_flow(uart0, false, true);
+    uart_set_fifo_enabled(uart0, true);
+    uart_set_format(uart0, 8, 1, UART_PARITY_NONE);
+    uart_set_translate_crlf(uart0, false);
+}
+
+void _i2c_init()
+{
+    i2c_init(i2c0, 400000);
+    gpio_set_function(4, GPIO_FUNC_I2C);
+    gpio_set_function(5, GPIO_FUNC_I2C);
+    gpio_pull_up(4);
+    gpio_pull_up(5);
+
+    i2c_init(i2c1, 1000000);
+    gpio_set_function(31, GPIO_FUNC_I2C);
+    gpio_set_function(32, GPIO_FUNC_I2C);
+    gpio_pull_up(31);
+    gpio_pull_up(32);
 }

@@ -13,4 +13,4 @@ add_executable(sample main.c)
 
 pico_add_extra_outputs(sample)
 
-target_link_libraries(sample pico_stdlib hardware_pwm)
+target_link_libraries(sample pico_stdlib hardware_pwm hardware_uart hardware_i2c)
