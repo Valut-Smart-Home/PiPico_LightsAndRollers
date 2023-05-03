@@ -159,7 +159,7 @@ void _uart_init()
     uart_set_hw_flow(uart0, false, true);
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
-    gpio_set_function(3, GPIO_FUNC_UART);
+    gpio_set_dir(3, true); //gpio_set_function(3, GPIO_FUNC_UART);
 }
 
 void _i2c_init()
