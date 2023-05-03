@@ -32,8 +32,8 @@ int main ()
 {
     // Init
     _i2c_init();
-    _uart_init();
     _pwm_init();
+    _uart_init();
 
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     while(1)
@@ -68,7 +68,7 @@ int main ()
             {
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
-                uart_set_break(uart0, false);
+                uart_set_break(uart0, true);
             }
         }
     }
@@ -167,8 +167,8 @@ void _i2c_init()
     gpio_pull_up(5);
 
     i2c_init(i2c1, 1000000);
-    gpio_set_function(31, GPIO_FUNC_I2C);
-    gpio_set_function(32, GPIO_FUNC_I2C);
-    gpio_pull_up(31);
-    gpio_pull_up(32);
+    gpio_set_function(26, GPIO_FUNC_I2C);
+    gpio_set_function(27, GPIO_FUNC_I2C);
+    gpio_pull_up(26);
+    gpio_pull_up(27);
 }
