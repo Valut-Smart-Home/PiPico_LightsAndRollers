@@ -55,8 +55,11 @@ int main ()
         if (uart_is_readable(uart0))
         {
             char c = uart_getc(uart0);
-            uint16_t value = (c - '0') * 6250;
-            pwm_set_chan_level(3, 1, value);
+            if (c >= '0' && c <= '9')
+            {
+                uint16_t value = (c - '0') * 6250;
+                pwm_set_chan_level(3, 1, value);
+            }
         }
         else if (uart_is_writable(uart0))
         {
@@ -64,7 +67,7 @@ int main ()
             if (actual >= next_uart_write)
             {
                 next_uart_write = delayed_by_ms(actual, 1000);
-                uart_puts(uart0, "OK");
+                uart_puts(uart0, "OK\n");
             }
         }
     }
