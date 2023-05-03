@@ -66,9 +66,13 @@ int main ()
             absolute_time_t actual = get_absolute_time();
             if (actual >= next_uart_write)
             {
+                gpio_put(3, true);
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
-                uart_set_break(uart0, true);
+            }
+            else 
+            {
+                gpio_put(3, false);
             }
         }
     }
