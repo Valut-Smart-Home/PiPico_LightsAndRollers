@@ -35,8 +35,8 @@ int main ()
     _uart_init();
     _pwm_init();
 
-    gpio_set_pulls(6, false, true); // Broken
-    gpio_set_pulls(4, true, false);
+    gpio_pull_down(6); // Broken
+    gpio_pull_up(3);
 
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     while(1)
