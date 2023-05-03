@@ -36,7 +36,7 @@ int main ()
     _uart_init();
 
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
-    gpio_put(3, false);
+    gpio_put(3, true);
     while(1)
     {
         // Loop
