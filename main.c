@@ -35,9 +35,6 @@ int main ()
     _uart_init();
     _pwm_init();
 
-    gpio_pull_down(6); // Broken
-    gpio_pull_up(3);
-
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     while(1)
     {
@@ -154,10 +151,10 @@ void _uart_init()
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
     gpio_set_function(3, GPIO_FUNC_UART);
-    uart_set_hw_flow(uart0, false, true);
-    uart_set_fifo_enabled(uart0, true);
     uart_set_format(uart0, 8, 1, UART_PARITY_NONE);
     uart_set_translate_crlf(uart0, false);
+    uart_set_fifo_enabled(uart0, true);
+    uart_set_hw_flow(uart0, false, true);
 }
 
 void _i2c_init()
