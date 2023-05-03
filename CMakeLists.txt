@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+set(PICO_UART_ENABLE_CRLF_SUPPORT,0)
+
 add_executable(sample main.c)
 
 pico_add_extra_outputs(sample)

@@ -68,6 +68,7 @@ int main ()
             {
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
+                uart_set_break(uart0, false);
             }
         }
     }
