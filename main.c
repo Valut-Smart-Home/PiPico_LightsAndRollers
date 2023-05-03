@@ -6,6 +6,8 @@
 #include "hardware/pwm.h"
 #include "hardware/uart.h"
 #include "hardware/i2c.h"
+#include "pico/time.h"
+#include "pico/types.h"
 
 void _pwm_init();
 void _uart_init();
@@ -24,6 +26,7 @@ void _i2c_init();
 //     Read bytes
 
 uint8_t btn_read = 0;
+absolute_time_t next_uart_write;
 
 int main ()
 {
@@ -32,6 +35,7 @@ int main ()
     _uart_init();
     _pwm_init();
 
+    next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     while(1)
     {
         // Loop
@@ -46,6 +50,22 @@ int main ()
             pwm_set_chan_level(5, 0, (btn_read & 0x20) ? 25000 : 0);
             pwm_set_chan_level(6, 0, (btn_read & 0x40) ? 25000 : 0);
             pwm_set_chan_level(7, 0, (btn_read & 0x80) ? 25000 : 0);
+        }
+
+        if (uart_is_readable(uart0))
+        {
+            char c = uart_getc(uart0);
+            uint16_t value = (c - '0') * 6250;
+            pwm_set_chan_level(3, 1, value);
+        }
+        else if (uart_is_writable(uart0))
+        {
+            absolute_time_t actual = get_absolute_time();
+            if (actual >= next_uart_write)
+            {
+                next_uart_write = delayed_by_ms(actual, 1000);
+                uart_puts(uart0, "OK");
+            }
         }
     }
 }
