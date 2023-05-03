@@ -36,7 +36,8 @@ int main ()
     _uart_init();
 
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
-    gpio_put(3, true);
+    gpio_init(3);
+    gpio_set_dir(3, true);
     while(1)
     {
         // Loop
@@ -67,8 +68,13 @@ int main ()
             absolute_time_t actual = get_absolute_time();
             if (actual >= next_uart_write)
             {
+                gpio_put(3, true);
                 next_uart_write = delayed_by_ms(actual, 1000);
                 uart_puts(uart0, "OK\n");
+            }
+            else 
+            {
+                gpio_put(3, false);
             }
         }
     }
@@ -155,7 +161,7 @@ void _uart_init()
     uart_set_hw_flow(uart0, false, true);
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
-    gpio_set_dir(3, true); //gpio_set_function(3, GPIO_FUNC_UART);
+    //gpio_set_function(3, GPIO_FUNC_UART);
 }
 
 void _i2c_init()
