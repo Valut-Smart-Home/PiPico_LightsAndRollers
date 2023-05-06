@@ -1,5 +1,5 @@
-# VSCode
 .vscode
+.cache
 
 # Build results
 [bB]uild
