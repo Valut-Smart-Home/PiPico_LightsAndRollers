@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "hardware/regs/uart.h"
 #include "pico/platform.h"
 #include "hardware/gpio.h"
@@ -9,10 +10,13 @@
 #include "hardware/i2c.h"
 #include "pico/time.h"
 #include "pico/types.h"
+#include "configuration.h"
+#include "pca95555.h"
 
 void _pwm_init();
 void _uart_init();
 void _i2c_init();
+void ensure_pca95555_output_zeros();
 
 // PCA9555: 
 //   Write:
@@ -26,52 +30,46 @@ void _i2c_init();
 //     Address Address 0100AAA1
 //     Read bytes
 
-uint8_t btn_read = 0;
+Pca95555 inputsExpander;
 absolute_time_t next_uart_write;
 
 int main ()
 {
+    char __foo[] = {[sizeof(struct button_configuration)] = 'a'};
     // Init
     _i2c_init();
     _pwm_init();
     _uart_init();
 
+    Pca95555_Init(&inputsExpander, i2c0, false, false, false);
+
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     gpio_init(3);
     gpio_set_dir(3, true);
+    uint8_t row = 8;
+    uint8_t buttons[8];
     while(1)
     {
         // Loop
-        int ret = i2c_read_blocking(i2c0, 0x20, &btn_read, 1, false);
-        if (ret == 1)
+        if (row > 7)
         {
-            pwm_set_chan_level(0, 0, (btn_read & 0x01) ? 25000 : 0);
-            pwm_set_chan_level(1, 0, (btn_read & 0x02) ? 25000 : 0);
-            pwm_set_chan_level(2, 0, (btn_read & 0x04) ? 25000 : 0);
-            pwm_set_chan_level(3, 0, (btn_read & 0x08) ? 25000 : 0);
-            pwm_set_chan_level(4, 0, (btn_read & 0x10) ? 25000 : 0);
-            pwm_set_chan_level(5, 0, (btn_read & 0x20) ? 25000 : 0);
-            pwm_set_chan_level(6, 0, (btn_read & 0x40) ? 25000 : 0);
-            pwm_set_chan_level(7, 0, (btn_read & 0x80) ? 25000 : 0);
+            row = 0;
+            ensure_pca95555_output_zeros();
         }
+        Pca95555_SetAllInputsOneOutput(&inputsExpander, row);
+        busy_wait_at_least_cycles(Pca95555_SetUpTimeNs / 8);
+        buttons[row] = Pca95555_ReadI1(&inputsExpander);
 
-        if (uart_is_readable(uart0))
-        {
-            char c = uart_getc(uart0);
-            if (c >= '0' && c <= '9')
-            {
-                uint16_t value = (c - '0') * 6250;
-                pwm_set_chan_level(3, 1, value);
-            }
-        }
-        else if (uart_is_writable(uart0))
+        if (uart_is_writable(uart0))
         {
             absolute_time_t actual = get_absolute_time();
-            if (actual >= next_uart_write)
+            if (actual._private_us_since_boot >= next_uart_write._private_us_since_boot)
             {
                 gpio_put(3, true); // 3us to switch
                 next_uart_write = delayed_by_ms(actual, 1000);
-                uart_puts(uart0, "OK\n");
+                char print_buff[100];
+                sprintf(print_buff, "%02X %02X %02X %02X %02X %02X %02X %02X\n", buttons[0], buttons[1], buttons[2], buttons[3], buttons[4], buttons[5], buttons[6], buttons[7]);
+                uart_puts(uart0, print_buff);
             }
             else if (!(uart_get_hw(uart0)->fr & UART_UARTFR_BUSY_BITS))
             {
@@ -79,6 +77,7 @@ int main ()
                 gpio_put(3, false);
             }
         }
+        row++;
     }
 }
 
@@ -179,4 +178,14 @@ void _i2c_init()
     gpio_set_function(27, GPIO_FUNC_I2C);
     gpio_pull_up(26);
     gpio_pull_up(27);
+}
+
+void ensure_pca95555_output_zeros()
+{
+    uint8_t buff[2];
+    Pca95555_ReadOutputRegister(&inputsExpander, buff);
+    if (buff[0] != 0 || buff[1] != 0)
+    {
+        Pca95555_SetOutputRegister(&inputsExpander, 0, 0);
+    }
 }

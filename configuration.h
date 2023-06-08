@@ -4,19 +4,19 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-enum btn_click_mode: uint8_t {
+enum btn_click_mode {
   btn_click_None,
   btn_click_Switch,
   btn_click_Start_Stop,
 };
 
-enum btn_press_mode: uint8_t {
+enum btn_press_mode {
   btn_press_None,
   btn_press_OnWhenPressed,
   btn_press_Dimmer,
 };
 
-enum btn_state_read_mode: uint8_t {
+enum btn_state_read_mode {
   btn_state_read_AlwaysZero,
   btn_state_read_AlwaysMax,
   btn_state_read_Max,
@@ -34,7 +34,7 @@ enum virtual_output_mode {
   virtual_output_ExternalPwm,
 };
 
-enum device_features: uint32_t {
+enum device_features {
   device_feature_fram = 0x01,
 };
 
