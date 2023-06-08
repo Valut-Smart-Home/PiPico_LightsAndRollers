@@ -63,7 +63,7 @@ int main ()
         if (uart_is_writable(uart0))
         {
             absolute_time_t actual = get_absolute_time();
-            if (actual._private_us_since_boot >= next_uart_write._private_us_since_boot)
+            if (to_us_since_boot(actual) >= to_us_since_boot(next_uart_write))
             {
                 gpio_put(3, true); // 3us to switch
                 next_uart_write = delayed_by_ms(actual, 1000);
