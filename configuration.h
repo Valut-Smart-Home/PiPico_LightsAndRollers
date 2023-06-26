@@ -67,8 +67,6 @@ struct button_press_configuration {
 struct device_configuration {
   uint8_t slaveId;
   enum device_features features;
-  uint8_t inputExternalIoModuleQty;
-  uint8_t outputExternalIoModuleQty;
 };
 
 struct button_configuration {

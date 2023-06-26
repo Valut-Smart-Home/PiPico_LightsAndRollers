@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "hardware/regs/uart.h"
 #include "pico/platform.h"
 #include "hardware/gpio.h"
@@ -12,22 +13,31 @@
 #include "pico/types.h"
 #include "configuration.h"
 
+uint8_t _ram_adr_pwm_states[2] = {0x00, 0x00};              // 16 * 2 bytes = 32 -> 0x00..0x1F
+uint8_t _ram_adr_device_configuration[2] = {0x00, 0x20};    // 8 bytes + 88 bytes reserved = 96 -> 0x20..0x7F
+uint8_t _ram_adr_button_config[2] = {0x00, 0x80};           // 64 * (108 bytes + 6 bytes reserved) = 7296 -> 0x80..0x1CFF
+uint8_t _ram_adr_output_config[2] = {0x00, 0x80};           // 32 * (16 bytes + 8 bytes reserved) = 768 -> 0x1D00..0x1FFF
+
+#define _button_config_ram_bytes 114
+#define _output_config_ram_bytes 24
+
+struct device_configuration _config;
+struct button_configuration _buttons[64];
+struct virtual_output_configuration _external_outputs[32];
+
+uint16_t _pwm_state[16];
+
 void _pwm_init();
 void _uart_init();
 void _i2c_init();
-void ensure_pca95555_output_zeros();
 
-// PCA9555: 
-//   Write:
-//     Address 0100AAA0
-//     Command
-//     Bytes
-//   Read:
-//     Address Address 0100AAA0
-//     Command
-//     Reset
-//     Address Address 0100AAA1
-//     Read bytes
+void _load_device_config();
+void _load_pwm_states();
+void _load_keyboard_config();
+void _load_output_config();
+
+void _set_default_config();
+//void _set_pwms();
 
 absolute_time_t next_uart_write;
 
@@ -39,9 +49,14 @@ int main ()
     _pwm_init();
     _uart_init();
 
+    _load_device_config();
+    if (_config.features & device_feature_fram)
+    {
+        _load_pwm_states();
+        _load_keyboard_config();
+    }
+
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
-    gpio_init(3);
-    gpio_set_dir(3, true);
     
     uint8_t buttons_raw[6];
     while(1)
@@ -107,21 +122,21 @@ void _pwm_init()
     pwm_set_clkdiv_int_frac(6, 2, 8);
     pwm_set_clkdiv_int_frac(7, 2, 8);
 
-    pwm_set_chan_level(0, 0, 25000);
+    pwm_set_chan_level(0, 0, 0);
     pwm_set_chan_level(0, 1, 0);
-    pwm_set_chan_level(1, 0, 25000);
+    pwm_set_chan_level(1, 0, 0);
     pwm_set_chan_level(1, 1, 0);
-    pwm_set_chan_level(2, 0, 25000);
+    pwm_set_chan_level(2, 0, 0);
     pwm_set_chan_level(2, 1, 0);
-    pwm_set_chan_level(3, 0, 25000);
+    pwm_set_chan_level(3, 0, 0);
     pwm_set_chan_level(3, 1, 0);
-    pwm_set_chan_level(4, 0, 25000);
+    pwm_set_chan_level(4, 0, 0);
     pwm_set_chan_level(4, 1, 0);
-    pwm_set_chan_level(5, 0, 25000);
+    pwm_set_chan_level(5, 0, 0);
     pwm_set_chan_level(5, 1, 0);
-    pwm_set_chan_level(6, 0, 25000);
+    pwm_set_chan_level(6, 0, 0);
     pwm_set_chan_level(6, 1, 0);
-    pwm_set_chan_level(7, 0, 25000);
+    pwm_set_chan_level(7, 0, 0);
     pwm_set_chan_level(7, 1, 0);
 
     pwm_set_enabled(0, true);
@@ -150,7 +165,8 @@ void _uart_init()
     uart_set_hw_flow(uart0, false, true);
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
-    //gpio_set_function(3, GPIO_FUNC_UART);
+    gpio_init(3);
+    gpio_set_dir(3, true);
 }
 
 void _i2c_init()
@@ -166,4 +182,57 @@ void _i2c_init()
     gpio_set_function(27, GPIO_FUNC_I2C);
     gpio_pull_up(26);
     gpio_pull_up(27);
+}
+
+void _load_pwm_states()
+{
+    uint16_t states[16];
+    int write = i2c_write_blocking_until(i2c1, 0x50, _ram_adr_pwm_states, 2, true, make_timeout_time_ms(2));
+    if (write != 2) return;
+
+    int read = i2c_read_blocking_until(i2c1, 0x50, (uint8_t*)states, 32, false, make_timeout_time_ms(2));
+    if (read != 32) return;
+
+    for (int i = 0; i < 16; i++)
+    {
+        _pwm_state[i] = states[i];
+        pwm_set_chan_level(i >> 1, i % 2, states[i]);
+    }
+}
+
+void _load_device_config()
+{
+    struct device_configuration readed_config;
+    int write = i2c_write_blocking_until(i2c1, 0x50, _ram_adr_device_configuration, 2, true, make_timeout_time_ms(2));
+    if (write != 2)
+    {
+        _set_default_config();
+        return;
+    }
+
+    int read = i2c_read_blocking_until(i2c1, 0x50, (uint8_t*)(&readed_config), sizeof(readed_config), false, make_timeout_time_ms(2));
+    if (read != sizeof(readed_config))
+    {
+        _set_default_config();
+        return;
+    }
+
+    readed_config.features |= device_feature_fram;
+    memcpy(&_config, &readed_config, sizeof(_config));
+}
+
+void _set_default_config()
+{
+    _config.slaveId = 127;
+    _config.features = 0;
+}
+
+void _load_keyboard_config()
+{
+
+}
+
+void _load_output_config()
+{
+
 }
