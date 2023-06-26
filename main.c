@@ -16,7 +16,7 @@
 uint8_t _ram_adr_pwm_states[2] = {0x00, 0x00};              // 16 * 2 bytes = 32 -> 0x00..0x1F
 uint8_t _ram_adr_device_configuration[2] = {0x00, 0x20};    // 8 bytes + 88 bytes reserved = 96 -> 0x20..0x7F
 uint8_t _ram_adr_button_config[2] = {0x00, 0x80};           // 64 * (108 bytes + 6 bytes reserved) = 7296 -> 0x80..0x1CFF
-uint8_t _ram_adr_output_config[2] = {0x00, 0x80};           // 32 * (16 bytes + 8 bytes reserved) = 768 -> 0x1D00..0x1FFF
+uint8_t _ram_adr_output_config[2] = {0x1D, 0x00};           // 32 * (16 bytes + 8 bytes reserved) = 768 -> 0x1D00..0x1FFF
 
 #define _button_config_ram_bytes 114
 #define _output_config_ram_bytes 24
