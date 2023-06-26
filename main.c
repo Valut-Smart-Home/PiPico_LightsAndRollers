@@ -11,7 +11,6 @@
 #include "pico/time.h"
 #include "pico/types.h"
 #include "configuration.h"
-#include "pca95555.h"
 
 void _pwm_init();
 void _uart_init();
@@ -30,7 +29,6 @@ void ensure_pca95555_output_zeros();
 //     Address Address 0100AAA1
 //     Read bytes
 
-Pca95555 inputsExpander;
 absolute_time_t next_uart_write;
 
 int main ()
@@ -41,24 +39,15 @@ int main ()
     _pwm_init();
     _uart_init();
 
-    Pca95555_Init(&inputsExpander, i2c0, false, false, false);
-
     next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
     gpio_init(3);
     gpio_set_dir(3, true);
-    uint8_t row = 8;
-    uint8_t buttons[8];
+    
+    uint8_t buttons_raw[6];
     while(1)
     {
         // Loop
-        if (row > 7)
-        {
-            row = 0;
-            ensure_pca95555_output_zeros();
-        }
-        Pca95555_SetAllInputsOneOutput(&inputsExpander, row);
-        busy_wait_at_least_cycles(Pca95555_SetUpTimeNs / 8);
-        buttons[row] = Pca95555_ReadI1(&inputsExpander);
+        i2c_read_blocking(i2c0, 0x20, buttons_raw, 6, false);
 
         if (uart_is_writable(uart0))
         {
@@ -68,7 +57,7 @@ int main ()
                 gpio_put(3, true); // 3us to switch
                 next_uart_write = delayed_by_ms(actual, 1000);
                 char print_buff[100];
-                sprintf(print_buff, "%02X %02X %02X %02X %02X %02X %02X %02X\n", buttons[0], buttons[1], buttons[2], buttons[3], buttons[4], buttons[5], buttons[6], buttons[7]);
+                sprintf(print_buff, "%02X %02X %02X %02X %02X %02X\n", buttons_raw[0], buttons_raw[1], buttons_raw[2], buttons_raw[3], buttons_raw[4], buttons_raw[5]);
                 uart_puts(uart0, print_buff);
             }
             else if (!(uart_get_hw(uart0)->fr & UART_UARTFR_BUSY_BITS))
@@ -77,7 +66,6 @@ int main ()
                 gpio_put(3, false);
             }
         }
-        row++;
     }
 }
 
@@ -167,7 +155,7 @@ void _uart_init()
 
 void _i2c_init()
 {
-    i2c_init(i2c0, 400000);
+    i2c_init(i2c0, 100000);
     gpio_set_function(4, GPIO_FUNC_I2C);
     gpio_set_function(5, GPIO_FUNC_I2C);
     gpio_pull_up(4);
@@ -178,14 +166,4 @@ void _i2c_init()
     gpio_set_function(27, GPIO_FUNC_I2C);
     gpio_pull_up(26);
     gpio_pull_up(27);
-}
-
-void ensure_pca95555_output_zeros()
-{
-    uint8_t buff[2];
-    Pca95555_ReadOutputRegister(&inputsExpander, buff);
-    if (buff[0] != 0 || buff[1] != 0)
-    {
-        Pca95555_SetOutputRegister(&inputsExpander, 0, 0);
-    }
 }

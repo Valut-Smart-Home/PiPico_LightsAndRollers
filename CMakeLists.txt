@@ -11,8 +11,8 @@ pico_sdk_init()
 
 set(PICO_UART_ENABLE_CRLF_SUPPORT,0)
 
-add_executable(sample main.c pca95555.c)
+add_executable(lights_rollers main.c)
 
-pico_add_extra_outputs(sample)
+pico_add_extra_outputs(lights_rollers)
 
-target_link_libraries(sample pico_stdlib hardware_pwm hardware_uart hardware_i2c)
+target_link_libraries(lights_rollers pico_stdlib hardware_pwm hardware_uart hardware_i2c)
