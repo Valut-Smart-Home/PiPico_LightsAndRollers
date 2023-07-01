@@ -37,7 +37,6 @@ void _load_keyboard_config();
 void _load_output_config();
 
 void _set_default_config();
-//void _set_pwms();
 
 absolute_time_t next_uart_write;
 
@@ -191,10 +190,44 @@ void _set_default_config()
 
 void _load_keyboard_config()
 {
+    for (int i = 0; i < 64; i++)
+    {
+        while (true) 
+        {
+            uint16_t addr = (_ram_adr_button_config[0] << 8) + _ram_adr_button_config[0];
+            addr += i * _button_config_ram_bytes;
+            uint8_t addr_buff[2];
+            addr_buff[0] = addr >> 8;
+            addr_buff[1] = (uint8_t)addr;
 
+            int write = i2c_write_blocking_until(i2c1, 0x50, addr_buff, 2, true, make_timeout_time_ms(2));
+            if (write != 2) continue;
+            
+            int read = i2c_read_blocking_until(i2c1, 0x50, (uint8_t*)(&_buttons[i]), sizeof(struct button_configuration), false, make_timeout_time_ms(2));
+            if (read == sizeof(struct button_configuration)) 
+                break;
+        }
+    }
 }
 
 void _load_output_config()
 {
+    for (int i = 0; i < 32; i++)
+    {
+        while (true) 
+        {
+            uint16_t addr = (_ram_adr_output_config[0] << 8) + _ram_adr_output_config[0];
+            addr += i * _output_config_ram_bytes;
+            uint8_t addr_buff[2];
+            addr_buff[0] = addr >> 8;
+            addr_buff[1] = (uint8_t)addr;
 
+            int write = i2c_write_blocking_until(i2c1, 0x50, addr_buff, 2, true, make_timeout_time_ms(2));
+            if (write != 2) continue;
+            
+            int read = i2c_read_blocking_until(i2c1, 0x50, (uint8_t*)(&_external_outputs[i]), sizeof(struct virtual_output_configuration), false, make_timeout_time_ms(2));
+            if (read == sizeof(struct virtual_output_configuration)) 
+                break;
+        }
+    }
 }
