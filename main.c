@@ -38,7 +38,9 @@ void _load_output_config();
 
 void _set_default_config();
 
-absolute_time_t next_uart_write;
+absolute_time_t last_uart_read_time;
+size_t uart_read_index = 0;
+uint8_t uart_read_buffer[sizeof(struct button_configuration) + 5]; // 1 address + 1 command + 1 index + 2 checksum
 
 int main ()
 {
@@ -55,7 +57,7 @@ int main ()
         _load_keyboard_config();
     }
 
-    next_uart_write = delayed_by_ms(get_absolute_time(), 1000);
+    last_uart_read_time = get_absolute_time();
     
     uint8_t buttons_raw[6];
     while(1)
@@ -63,23 +65,16 @@ int main ()
         // Loop
         i2c_read_blocking(i2c0, 0x20, buttons_raw, 6, false);
 
-        if (uart_is_writable(uart0))
+        while (uart_is_readable(uart0))
         {
-            absolute_time_t actual = get_absolute_time();
-            if (to_us_since_boot(actual) >= to_us_since_boot(next_uart_write))
-            {
-                gpio_put(3, true); // 3us to switch
-                next_uart_write = delayed_by_ms(actual, 1000);
-                char print_buff[100];
-                sprintf(print_buff, "%02X %02X %02X %02X %02X %02X\n", buttons_raw[0], buttons_raw[1], buttons_raw[2], buttons_raw[3], buttons_raw[4], buttons_raw[5]);
-                uart_puts(uart0, print_buff);
-            }
-            else if (!(uart_get_hw(uart0)->fr & UART_UARTFR_BUSY_BITS))
-            {
-                //3us to switch = 375 cycles
-                gpio_put(3, false);
-            }
+            absolute_time_t now = get_absolute_time();
+            if (absolute_time_diff_us(last_uart_read_time, now) > 200000)
+                uart_read_index = 0;
+            last_uart_read_time = now;
         }
+        // uart RTS pin
+        // 3us to switch = 375 cycles
+        // gpio_put(3, false);
     }
 }
 
