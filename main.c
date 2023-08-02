@@ -13,6 +13,9 @@
 #include "pico/types.h"
 #include "configuration.h"
 
+#include "bsp/board.h"
+#include "tusb.h"
+
 uint8_t _ram_adr_pwm_states[2] = {0x00, 0x00};              // 16 * 2 bytes = 32 -> 0x00..0x1F
 uint8_t _ram_adr_device_configuration[2] = {0x00, 0x20};    // 8 bytes + 88 bytes reserved = 96 -> 0x20..0x7F
 uint8_t _ram_adr_button_config[2] = {0x00, 0x80};           // 64 * (108 bytes + 6 bytes reserved) = 7296 -> 0x80..0x1CFF
@@ -44,9 +47,11 @@ int main ()
 {
     char __foo[] = {[sizeof(struct button_configuration)] = 'a'};
     // Init
+    board_init();
     _i2c_init();
     _pwm_init();
     _uart_init();
+    tud_init(BOARD_TUD_RHPORT);
 
     _load_device_config();
     if (_config.features & device_feature_fram)
@@ -61,6 +66,7 @@ int main ()
     while(1)
     {
         // Loop
+        tud_task();
         i2c_read_blocking(i2c0, 0x20, buttons_raw, 6, false);
 
         if (uart_is_writable(uart0))
@@ -230,4 +236,63 @@ void _load_output_config()
                 break;
         }
     }
+}
+
+///
+///  USB
+///
+
+// Invoked when device is mounted
+void tud_mount_cb(void)
+{
+}
+
+// Invoked when device is unmounted
+void tud_umount_cb(void)
+{
+}
+
+// Invoked when usb bus is suspended
+// remote_wakeup_en : if host allow us  to perform remote wakeup
+// Within 7ms, device must draw an average of current less than 2.5 mA from bus
+void tud_suspend_cb(bool remote_wakeup_en)
+{
+  (void) remote_wakeup_en;
+}
+
+// Invoked when usb bus is resumed
+void tud_resume_cb(void)
+{
+}
+
+//--------------------------------------------------------------------+
+// USB HID
+//--------------------------------------------------------------------+
+
+// Invoked when received GET_REPORT control request
+// Application must fill buffer report's content and return its length.
+// Return zero will cause the stack to STALL request
+uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen)
+{
+  // TODO not Implemented
+  (void) itf;
+  (void) report_id;
+  (void) report_type;
+  (void) buffer;
+  (void) reqlen;
+
+  return 0;
+}
+
+// Invoked when received SET_REPORT control request or
+// received data on OUT endpoint ( Report ID = 0, Type = 0 )
+void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize)
+{
+  // This example doesn't use multiple report and report ID
+  (void) itf;
+  (void) report_id;
+  (void) report_type;
+
+  // echo back anything we received from host
+  tud_hid_report(0, buffer, bufsize);
 }
