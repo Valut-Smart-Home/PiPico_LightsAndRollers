@@ -1,7 +1,9 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "class/hid/hid_device.h"
 #include "hardware/regs/uart.h"
 #include "pico/platform.h"
 #include "hardware/gpio.h"
@@ -29,6 +31,19 @@ struct button_configuration _buttons[64];
 struct virtual_output_configuration _external_outputs[32];
 
 uint16_t _pwm_state[16];
+
+enum communication_command {
+    ccom_write_pwms,
+    ccom_read_pwms,
+    ccom_write_pwm,
+    ccom_read_pwm,
+    ccom_write_device_configuration,
+    ccom_read_device_configuration,
+    ccom_write_button_configuration,
+    ccom_read_button_configuration,
+    ccom_write_output_config,
+    ccom_read_output_config,
+};
 
 void _pwm_init();
 void _uart_init();
@@ -234,6 +249,78 @@ void _load_output_config()
 }
 
 ///
+///  Communication handling
+///
+
+void write_pwms(uint16_t values[16])
+{
+    uint8_t rambuff[34];
+    memcpy(rambuff, _ram_adr_pwm_states, 2);
+    memcpy(rambuff+2, values, 32);
+    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 34, false, make_timeout_time_ms(20));
+    if (write != 34) return;
+
+    for (int i = 0; i < 16; i++)
+    {
+        _pwm_state[i] = values[i];
+        pwm_set_chan_level(i >> 1, i % 2, values[i]);
+    }
+}
+
+void write_pwm (size_t pos, uint16_t value[1])
+{
+    uint8_t rambuff[4];
+    memcpy(rambuff, _ram_adr_pwm_states, 2);
+    rambuff[1] += (pos * 2);
+    memcpy(rambuff+2, value, 2);
+    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 4, false, make_timeout_time_ms(20));
+    if (write != 4) return;
+
+    _pwm_state[pos] = value[0];
+    pwm_set_chan_level(pos >> 1, pos % 2, value[0]);
+}
+
+void write_device_config(struct device_configuration* new_config)
+{
+    const size_t buf_size = sizeof(struct device_configuration) + 2;
+    uint8_t rambuff[buf_size];
+    memcpy(rambuff, _ram_adr_device_configuration, 2);
+    memcpy(rambuff + 2, new_config, 2);
+    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+    if (write != buf_size) return;
+
+    memcpy(&_config, new_config, sizeof(struct device_configuration));
+}
+
+void write_button_config(size_t pos, struct button_configuration* new_button_config)
+{
+    const size_t buf_size = sizeof(struct button_configuration) + 2;
+    uint8_t rambuff[buf_size];
+    uint16_t adr = *((uint16_t*)_ram_adr_button_config);
+    adr += pos * _button_config_ram_bytes;
+    memcpy(rambuff, &adr, 2);
+    memcpy(rambuff + 2, new_button_config, sizeof(struct button_configuration));
+    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+    if (write != buf_size) return;
+
+    memcpy(_buttons + pos, new_button_config, sizeof(struct button_configuration));
+}
+
+void write_output_config(size_t pos, struct virtual_output_configuration* new_output_config)
+{
+    const size_t buf_size = sizeof(struct virtual_output_configuration) + 2;
+    uint8_t rambuff[buf_size];
+    uint16_t adr = *((uint16_t*)_ram_adr_output_config);
+    adr += pos * _output_config_ram_bytes;
+    memcpy(rambuff, &adr, 2);
+    memcpy(rambuff + 2, new_output_config, sizeof(struct virtual_output_configuration));
+    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+    if (write != buf_size) return;
+
+    memcpy(_external_outputs + pos, new_output_config, sizeof(struct virtual_output_configuration));
+}
+
+///
 ///  USB
 ///
 
@@ -285,9 +372,60 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 {
   // This example doesn't use multiple report and report ID
   (void) itf;
-  (void) report_id;
   (void) report_type;
 
-  // echo back anything we received from host
-  tud_hid_report(0, buffer, bufsize);
+  if (bufsize > 0)
+  {
+    enum communication_command cmd = (enum communication_command)buffer[0];
+    switch (cmd) {
+        case ccom_write_pwms:
+            if (bufsize == 33)
+                write_pwms((uint16_t*)(buffer + 1));
+            return;
+        case ccom_read_pwms:
+            if (bufsize == 1)
+                tud_hid_report(report_id, _pwm_state, 32);
+            return;
+        case ccom_write_pwm:
+            if (bufsize == 4)
+            {
+                size_t pos = buffer[1];
+                if (pos >= 0 && pos < 16)
+                    write_pwm(pos, (uint16_t*)(buffer + 2));
+            }
+            return;
+        case ccom_read_pwm:
+            if (bufsize == 2)
+            {
+                size_t pos = buffer[1];
+                if (pos >= 0 && pos < 16)
+                    tud_hid_report(report_id, _pwm_state + pos, 2);
+            }
+            return;
+        case ccom_write_device_configuration:
+            if (bufsize == sizeof(struct device_configuration) + 1)
+                write_device_config((struct device_configuration*)(buffer + 1));
+            return;
+        case ccom_read_device_configuration:
+            if (bufsize == 1)
+                tud_hid_report(report_id, &_config, sizeof(struct device_configuration));
+            return;
+        case ccom_write_button_configuration:
+            if (bufsize == sizeof(struct button_configuration) + 2)
+                write_button_config(buffer[1], (struct button_configuration*)(buffer + 2));
+            return;
+        case ccom_read_button_configuration:
+            if (bufsize == 2)
+                tud_hid_report(report_id, _buttons + buffer[1], sizeof(struct button_configuration));
+            return;
+        case ccom_write_output_config:
+            if (bufsize == sizeof(struct virtual_output_configuration) + 2)
+                write_output_config(buffer[1], (struct virtual_output_configuration*)(buffer + 2));
+            return;
+        case ccom_read_output_config:
+            if (bufsize == 2)
+                tud_hid_report(report_id, _external_outputs + buffer[1], sizeof(struct virtual_output_configuration));
+            return;
+    }
+  }
 }
