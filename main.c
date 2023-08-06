@@ -84,15 +84,15 @@ int main ()
     {
         // Loop
         tud_task();
-        i2c_read_blocking(i2c0, 0x20, buttons_raw, 6, false);
+        //i2c_read_blocking(i2c0, 0x20, buttons_raw, 6, false);
 
-        while (uart_is_readable(uart0))
-        {
-            absolute_time_t now = get_absolute_time();
-            if (absolute_time_diff_us(last_uart_read_time, now) > 200000)
-                uart_read_index = 0;
-            last_uart_read_time = now;
-        }
+        // while (uart_is_readable(uart0))
+        // {
+        //     absolute_time_t now = get_absolute_time();
+        //     if (absolute_time_diff_us(last_uart_read_time, now) > 200000)
+        //         uart_read_index = 0;
+        //     last_uart_read_time = now;
+        // }
         // uart RTS pin
         // 3us to switch = 375 cycles
         // gpio_put(3, false);
@@ -254,11 +254,14 @@ void _load_output_config()
 
 void write_pwms(uint16_t values[16])
 {
-    uint8_t rambuff[34];
-    memcpy(rambuff, _ram_adr_pwm_states, 2);
-    memcpy(rambuff+2, values, 32);
-    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 34, false, make_timeout_time_ms(20));
-    if (write != 34) return;
+    if (_config.features & device_feature_fram)
+    {
+        uint8_t rambuff[34];
+        memcpy(rambuff, _ram_adr_pwm_states, 2);
+        memcpy(rambuff+2, values, 32);
+        int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 34, false, make_timeout_time_ms(20));
+        if (write != 34) return;
+    }
 
     for (int i = 0; i < 16; i++)
     {
@@ -269,12 +272,15 @@ void write_pwms(uint16_t values[16])
 
 void write_pwm (size_t pos, uint16_t value[1])
 {
-    uint8_t rambuff[4];
-    memcpy(rambuff, _ram_adr_pwm_states, 2);
-    rambuff[1] += (pos * 2);
-    memcpy(rambuff+2, value, 2);
-    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 4, false, make_timeout_time_ms(20));
-    if (write != 4) return;
+    if (_config.features & device_feature_fram)
+    {
+        uint8_t rambuff[4];
+        memcpy(rambuff, _ram_adr_pwm_states, 2);
+        rambuff[1] += (pos * 2);
+        memcpy(rambuff+2, value, 2);
+        int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, 4, false, make_timeout_time_ms(20));
+        if (write != 4) return;
+    }
 
     _pwm_state[pos] = value[0];
     pwm_set_chan_level(pos >> 1, pos % 2, value[0]);
@@ -282,40 +288,49 @@ void write_pwm (size_t pos, uint16_t value[1])
 
 void write_device_config(struct device_configuration* new_config)
 {
-    const size_t buf_size = sizeof(struct device_configuration) + 2;
-    uint8_t rambuff[buf_size];
-    memcpy(rambuff, _ram_adr_device_configuration, 2);
-    memcpy(rambuff + 2, new_config, 2);
-    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
-    if (write != buf_size) return;
+    if (_config.features & device_feature_fram)
+    {
+        const size_t buf_size = sizeof(struct device_configuration) + 2;
+        uint8_t rambuff[buf_size];
+        memcpy(rambuff, _ram_adr_device_configuration, 2);
+        memcpy(rambuff + 2, new_config, 2);
+        int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+        if (write != buf_size) return;
+    }
 
     memcpy(&_config, new_config, sizeof(struct device_configuration));
 }
 
 void write_button_config(size_t pos, struct button_configuration* new_button_config)
 {
-    const size_t buf_size = sizeof(struct button_configuration) + 2;
-    uint8_t rambuff[buf_size];
-    uint16_t adr = *((uint16_t*)_ram_adr_button_config);
-    adr += pos * _button_config_ram_bytes;
-    memcpy(rambuff, &adr, 2);
-    memcpy(rambuff + 2, new_button_config, sizeof(struct button_configuration));
-    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
-    if (write != buf_size) return;
+    if (_config.features & device_feature_fram)
+    {
+        const size_t buf_size = sizeof(struct button_configuration) + 2;
+        uint8_t rambuff[buf_size];
+        uint16_t adr = *((uint16_t*)_ram_adr_button_config);
+        adr += pos * _button_config_ram_bytes;
+        memcpy(rambuff, &adr, 2);
+        memcpy(rambuff + 2, new_button_config, sizeof(struct button_configuration));
+        int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+        if (write != buf_size) return;
+    }
 
     memcpy(_buttons + pos, new_button_config, sizeof(struct button_configuration));
 }
 
 void write_output_config(size_t pos, struct virtual_output_configuration* new_output_config)
 {
-    const size_t buf_size = sizeof(struct virtual_output_configuration) + 2;
-    uint8_t rambuff[buf_size];
-    uint16_t adr = *((uint16_t*)_ram_adr_output_config);
-    adr += pos * _output_config_ram_bytes;
-    memcpy(rambuff, &adr, 2);
-    memcpy(rambuff + 2, new_output_config, sizeof(struct virtual_output_configuration));
-    int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
-    if (write != buf_size) return;
+    if (_config.features & device_feature_fram)
+    {
+        const size_t buf_size = sizeof(struct virtual_output_configuration) + 2;
+        uint8_t rambuff[buf_size];
+        uint16_t adr = *((uint16_t*)_ram_adr_output_config);
+        adr += pos * _output_config_ram_bytes;
+        memcpy(rambuff, &adr, 2);
+        memcpy(rambuff + 2, new_output_config, sizeof(struct virtual_output_configuration));
+        int write = i2c_write_blocking_until(i2c1, 0x50, rambuff, buf_size, false, make_timeout_time_ms(20));
+        if (write != buf_size) return;
+    }
 
     memcpy(_external_outputs + pos, new_output_config, sizeof(struct virtual_output_configuration));
 }
